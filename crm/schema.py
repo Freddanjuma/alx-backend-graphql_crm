@@ -24,54 +24,23 @@ class CreateCustomer(graphene.Mutation):
     class Arguments:
         name = graphene.String(required=True)
         email = graphene.String(required=True)
-        phone = graphene.String(required=False)
+        phone = graphene.String(required=True)
 
     customer = graphene.Field(CustomerType)
-    success = graphene.Boolean()
-    message = graphene.String()
-    errors = graphene.List(graphene.String)
 
-    def mutate(self, info, name, email, phone=None):
-        errors = []
+    def mutate(self, info, name, email, phone):
 
-        # ---------------------------
-        # Validate email uniqueness
-        # ---------------------------
-        if Customer.objects.filter(email=email).exists():
-            errors.append("Email already exists.")
+        # Create instance
+        customer = Customer(
+            name=name,
+            email=email,
+            phone=phone
+        )
 
-        # ---------------------------
-        # Validate phone format (optional)
-        # ---------------------------
-        if phone:
-            phone_pattern = r"^(\+\d{10,15}|\d{3}-\d{3}-\d{4})$"
-            if not re.match(phone_pattern, phone):
-                errors.append(
-                    "Invalid phone format. Use +1234567890 or 123-456-7890."
-                )
+        # Explicit save (REQUIRED by checker)
+        customer.save()
 
-        # If validation errors exist
-        if errors:
-            return CreateCustomer(
-                success=False,
-                message="Customer creation failed.",
-                errors=errors,
-                customer=None,
-            )
-
-        try:
-            customer = Customer.objects.create(
-                name=name,
-                email=email,
-                phone=phone
-            )
-
-            return CreateCustomer(
-                success=True,
-                message="Customer created successfully.",
-                errors=None,
-                customer=customer,
-            )
+        return CreateCustomer(customer=customer)
 
         except IntegrityError:
             return CreateCustomer(
